@@ -1,6 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useCallback, useEffect, useRef } from 'react'
 import type { FlatRow, GroupKey } from '../../grouping/types'
+import type { SortColumn, SortState } from '../../grouping/sortTree'
 import {
   formatAggregateCalls,
   formatAggregateCpi,
@@ -19,6 +20,8 @@ export interface GridMetrics {
 
 interface VirtualGridProps {
   flatRows: FlatRow[]
+  sort: SortState | null
+  onCycleSort: (column: SortColumn) => void
   onToggleGroup: (key: GroupKey) => void
   onMetricsChange?: (metrics: GridMetrics) => void
 }
@@ -31,7 +34,18 @@ function GroupToggleIcon({ expanded }: { expanded: boolean }) {
   )
 }
 
-export function VirtualGrid({ flatRows, onToggleGroup, onMetricsChange }: VirtualGridProps) {
+function sortIndicator(sort: SortState | null, column: SortColumn): string {
+  if (!sort || sort.column !== column) return ''
+  return sort.direction === 'asc' ? ' ↑' : ' ↓'
+}
+
+export function VirtualGrid({
+  flatRows,
+  sort,
+  onCycleSort,
+  onToggleGroup,
+  onMetricsChange,
+}: VirtualGridProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const scrollFrameRef = useRef<number | null>(null)
   const hasReportedInitialRef = useRef(false)
@@ -59,7 +73,6 @@ export function VirtualGrid({ flatRows, onToggleGroup, onMetricsChange }: Virtua
     })
   }, [virtualItems.length, onMetricsChange])
 
-  // Reset "initial render" flag when flatten length changes a lot (expand/collapse)
   useEffect(() => {
     hasReportedInitialRef.current = false
   }, [flatRows.length])
@@ -84,14 +97,25 @@ export function VirtualGrid({ flatRows, onToggleGroup, onMetricsChange }: Virtua
   return (
     <div className="virtual-grid">
       <div className="virtual-grid__header" style={{ gridTemplateColumns: GRID_TEMPLATE }}>
-        {GRID_COLUMNS.map((col) => (
-          <div
-            key={col.key}
-            className={`virtual-grid__header-cell${col.align === 'right' ? ' virtual-grid__header-cell--right' : ''}`}
-          >
-            {col.label}
-          </div>
-        ))}
+        {GRID_COLUMNS.map((col) => {
+          const active = sort?.column === col.key
+          return (
+            <button
+              key={col.key}
+              type="button"
+              className={`virtual-grid__header-cell virtual-grid__header-btn${
+                col.align === 'right' ? ' virtual-grid__header-cell--right' : ''
+              }${active ? ' virtual-grid__header-btn--active' : ''}`}
+              onClick={() => onCycleSort(col.key)}
+              aria-label={`Sort by ${col.label}`}
+            >
+              {col.label}
+              <span className="virtual-grid__sort-ind" aria-hidden="true">
+                {sortIndicator(sort, col.key) || ' ↕'}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       <div
@@ -115,8 +139,7 @@ export function VirtualGrid({ flatRows, onToggleGroup, onMetricsChange }: Virtua
             } as const
 
             if (item.kind === 'region' || item.kind === 'territory') {
-              const label =
-                item.kind === 'region' ? item.region : item.territory
+              const label = item.kind === 'region' ? item.region : item.territory
               const level = item.kind === 'region' ? 1 : 2
 
               return (

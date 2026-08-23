@@ -14,32 +14,39 @@ import {
 } from './types'
 
 /**
- * Build Region → Territory tree once per dataset (or after committed edits change
- * values used in aggregates). Regions and territories are sorted alphabetically
- * for a stable default order (FR-3 will reorder by aggregate when sorting).
+ * Build Region → Territory tree from a subset of source indices.
+ * Aggregates reflect only included rows (post search/filter).
+ * Default order: alphabetical region / territory; leaf order = index order.
  */
-export function buildGroupedTree(rows: HcpRecord[]): GroupedTree {
-  // region -> territory -> row indices
+export function buildGroupedTree(
+  rows: HcpRecord[],
+  indices?: readonly number[],
+): GroupedTree {
   const regionMap = new Map<string, Map<string, number[]>>()
+  const list = indices ?? (() => {
+    const all = new Array<number>(rows.length)
+    for (let i = 0; i < rows.length; i++) all[i] = i
+    return all
+  })()
 
-  for (let i = 0; i < rows.length; i++) {
+  for (const i of list) {
     const row = rows[i]
     let territoryMap = regionMap.get(row.region)
     if (!territoryMap) {
       territoryMap = new Map()
       regionMap.set(row.region, territoryMap)
     }
-    let indices = territoryMap.get(row.territory)
-    if (!indices) {
-      indices = []
-      territoryMap.set(row.territory, indices)
+    let bucket = territoryMap.get(row.territory)
+    if (!bucket) {
+      bucket = []
+      territoryMap.set(row.territory, bucket)
     }
-    indices.push(i)
+    bucket.push(i)
   }
 
   const regions: RegionGroup[] = []
-
   const regionNames = [...regionMap.keys()].sort((a, b) => a.localeCompare(b))
+
   for (const region of regionNames) {
     const territoryMap = regionMap.get(region)!
     const territoryNames = [...territoryMap.keys()].sort((a, b) => a.localeCompare(b))
@@ -70,5 +77,5 @@ export function buildGroupedTree(rows: HcpRecord[]): GroupedTree {
     })
   }
 
-  return { regions, totalRows: rows.length }
+  return { regions, totalRows: list.length }
 }

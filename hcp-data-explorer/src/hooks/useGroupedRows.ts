@@ -1,12 +1,27 @@
-import { useCallback, useMemo, useState } from 'react'
-import type { HcpRecord } from '../provided/data-generator'
+import { useCallback, useDeferredValue, useMemo, useState } from 'react'
 import { buildGroupedTree } from '../grouping/buildGroupedTree'
+import { filterRowIndices, listRegions } from '../grouping/filterRows'
 import { allGroupKeys, flattenVisibleRows } from '../grouping/flattenVisibleRows'
+import {
+  applySortToTree,
+  nextSortState,
+  type SortColumn,
+  type SortState,
+} from '../grouping/sortTree'
 import type { FlatRow, GroupKey, GroupedTree } from '../grouping/types'
+import type { HcpRecord } from '../provided/data-generator'
 
 export interface UseGroupedRowsResult {
   tree: GroupedTree
   flatRows: FlatRow[]
+  matchedCount: number
+  regions: string[]
+  search: string
+  setSearch: (value: string) => void
+  regionFilter: string | null
+  setRegionFilter: (region: string | null) => void
+  sort: SortState | null
+  cycleSort: (column: SortColumn) => void
   collapsed: ReadonlySet<GroupKey>
   toggleGroup: (key: GroupKey) => void
   expandAll: () => void
@@ -14,13 +29,44 @@ export interface UseGroupedRowsResult {
 }
 
 /**
- * Groups 50k rows by Region → Territory and flattens for the virtualizer.
- * Expand state is a set of *collapsed* keys (default: all expanded).
+ * Groups rows by Region → Territory with search, region filter, and column sort.
+ * Search uses a deferred value so typing stays responsive over 50k rows.
  */
 export function useGroupedRows(rows: HcpRecord[]): UseGroupedRowsResult {
-  const tree = useMemo(() => buildGroupedTree(rows), [rows])
-
+  const [search, setSearchState] = useState('')
+  const deferredSearch = useDeferredValue(search)
+  const [regionFilter, setRegionFilter] = useState<string | null>(null)
+  const [sort, setSort] = useState<SortState | null>(null)
   const [collapsed, setCollapsed] = useState<Set<GroupKey>>(() => new Set())
+
+  /** Auto-expand matching groups when search is applied (event handler, not effect). */
+  const setSearch = useCallback((value: string) => {
+    setSearchState(value)
+    if (value.trim()) {
+      setCollapsed(new Set())
+    }
+  }, [])
+
+  const regions = useMemo(() => listRegions(rows), [rows])
+
+  const filteredIndices = useMemo(
+    () =>
+      filterRowIndices(rows, {
+        search: deferredSearch,
+        region: regionFilter,
+      }),
+    [rows, deferredSearch, regionFilter],
+  )
+
+  const baseTree = useMemo(
+    () => buildGroupedTree(rows, filteredIndices),
+    [rows, filteredIndices],
+  )
+
+  const tree = useMemo(
+    () => applySortToTree(baseTree, rows, sort),
+    [baseTree, rows, sort],
+  )
 
   const flatRows = useMemo(
     () => flattenVisibleRows(tree, rows, collapsed),
@@ -44,5 +90,24 @@ export function useGroupedRows(rows: HcpRecord[]): UseGroupedRowsResult {
     setCollapsed(new Set(allGroupKeys(tree)))
   }, [tree])
 
-  return { tree, flatRows, collapsed, toggleGroup, expandAll, collapseAll }
+  const cycleSort = useCallback((column: SortColumn) => {
+    setSort((prev) => nextSortState(prev, column))
+  }, [])
+
+  return {
+    tree,
+    flatRows,
+    matchedCount: filteredIndices.length,
+    regions,
+    search,
+    setSearch,
+    regionFilter,
+    setRegionFilter,
+    sort,
+    cycleSort,
+    collapsed,
+    toggleGroup,
+    expandAll,
+    collapseAll,
+  }
 }

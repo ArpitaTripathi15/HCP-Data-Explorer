@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { DEFAULT_THEME } from './provided/theme-config'
 import { GridFooter } from './components/GridFooter/GridFooter'
+import { GridToolbar } from './components/GridToolbar/GridToolbar'
 import { VirtualGrid, type GridMetrics } from './components/VirtualGrid/VirtualGrid'
 import { useGroupedRows } from './hooks/useGroupedRows'
 import { useHcpData } from './hooks/useHcpData'
@@ -8,7 +9,21 @@ import './App.css'
 
 function App() {
   const { rows, loadTimeMs } = useHcpData()
-  const { flatRows, toggleGroup, expandAll, collapseAll } = useGroupedRows(rows)
+  const {
+    flatRows,
+    matchedCount,
+    regions,
+    search,
+    setSearch,
+    regionFilter,
+    setRegionFilter,
+    sort,
+    cycleSort,
+    toggleGroup,
+    expandAll,
+    collapseAll,
+  } = useGroupedRows(rows)
+
   const [metrics, setMetrics] = useState<GridMetrics>({
     rowsInDom: 0,
     lastOperationMs: loadTimeMs,
@@ -43,27 +58,32 @@ function App() {
               Region → Territory
             </p>
           </div>
-          <div className="app__toolbar">
-            <button type="button" className="app__toolbar-btn" onClick={expandAll}>
-              Expand all
-            </button>
-            <button type="button" className="app__toolbar-btn" onClick={collapseAll}>
-              Collapse all
-            </button>
-          </div>
         </div>
       </header>
 
       <main className="app__main">
+        <GridToolbar
+          search={search}
+          onSearchChange={setSearch}
+          regions={regions}
+          regionFilter={regionFilter}
+          onRegionFilterChange={setRegionFilter}
+          matchedCount={matchedCount}
+          totalCount={rows.length}
+          onExpandAll={expandAll}
+          onCollapseAll={collapseAll}
+        />
         <VirtualGrid
           flatRows={flatRows}
+          sort={sort}
+          onCycleSort={cycleSort}
           onToggleGroup={toggleGroup}
           onMetricsChange={handleMetricsChange}
         />
       </main>
 
       <GridFooter
-        totalRows={rows.length}
+        totalRows={matchedCount}
         rowsInDom={metrics.rowsInDom}
         lastOperationMs={metrics.operation === 'data load' ? loadTimeMs : metrics.lastOperationMs}
         operation={metrics.operation}
