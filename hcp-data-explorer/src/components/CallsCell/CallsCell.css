@@ -1,0 +1,82 @@
+.calls-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  padding: 0 8px;
+  min-width: 0;
+}
+
+.calls-cell--editing {
+  padding: 0 4px;
+}
+
+.calls-cell__input {
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--color-primary);
+  border-radius: calc(var(--radius) * 0.5);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: 13px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.calls-cell__input:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 0;
+}
+
+.calls-cell__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  cursor: pointer;
+}
+
+.calls-cell__btn:disabled {
+  cursor: wait;
+  opacity: 0.85;
+}
+
+.calls-cell__btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.calls-cell--pending {
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.calls-cell--rejected {
+  background: color-mix(in srgb, #c0392b 14%, transparent);
+}
+
+.calls-cell__spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: calls-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes calls-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

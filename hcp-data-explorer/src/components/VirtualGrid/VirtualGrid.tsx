@@ -1,5 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useCallback, useEffect, useRef } from 'react'
+import type { CallsCellState } from '../../editing/types'
 import type { FlatRow, GroupKey } from '../../grouping/types'
 import type { SortColumn, SortState } from '../../grouping/sortTree'
 import {
@@ -7,8 +8,8 @@ import {
   formatAggregateCpi,
   formatAggregateNumber,
 } from '../../utils/aggregates'
-import { formatCallsDisplay } from '../../utils/calls'
 import { computeCpi, formatCpi } from '../../utils/cpi'
+import { CallsCell } from '../CallsCell/CallsCell'
 import { GRID_COLUMNS, GRID_TEMPLATE, ROW_HEIGHT } from './gridColumns'
 import './VirtualGrid.css'
 
@@ -23,6 +24,11 @@ interface VirtualGridProps {
   sort: SortState | null
   onCycleSort: (column: SortColumn) => void
   onToggleGroup: (key: GroupKey) => void
+  getCellState: (rowIndex: number) => CallsCellState | undefined
+  onBeginEdit: (rowIndex: number) => boolean
+  onDraftChange: (rowIndex: number, raw: string) => void
+  onCommitEdit: (rowIndex: number, value?: number) => void
+  onCancelEdit: (rowIndex: number) => void
   onMetricsChange?: (metrics: GridMetrics) => void
 }
 
@@ -44,6 +50,11 @@ export function VirtualGrid({
   sort,
   onCycleSort,
   onToggleGroup,
+  getCellState,
+  onBeginEdit,
+  onDraftChange,
+  onCommitEdit,
+  onCancelEdit,
   onMetricsChange,
 }: VirtualGridProps) {
   const parentRef = useRef<HTMLDivElement>(null)
@@ -195,6 +206,7 @@ export function VirtualGrid({
 
             const { row, rowIndex } = item
             const cpi = computeCpi(row.calls, row.trx)
+            const cellState = getCellState(rowIndex)
 
             return (
               <div
@@ -223,9 +235,15 @@ export function VirtualGrid({
                 <div className="virtual-grid__cell" role="gridcell">
                   {row.territory}
                 </div>
-                <div className="virtual-grid__cell virtual-grid__cell--right" role="gridcell">
-                  {formatCallsDisplay(row.calls)}
-                </div>
+                <CallsCell
+                  rowIndex={rowIndex}
+                  committedCalls={row.calls}
+                  cell={cellState}
+                  onBeginEdit={onBeginEdit}
+                  onDraftChange={onDraftChange}
+                  onCommit={onCommitEdit}
+                  onCancel={onCancelEdit}
+                />
                 <div className="virtual-grid__cell virtual-grid__cell--right" role="gridcell">
                   {row.trx}
                 </div>

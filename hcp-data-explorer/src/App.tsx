@@ -1,14 +1,30 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { DEFAULT_THEME } from './provided/theme-config'
 import { GridFooter } from './components/GridFooter/GridFooter'
 import { GridToolbar } from './components/GridToolbar/GridToolbar'
 import { VirtualGrid, type GridMetrics } from './components/VirtualGrid/VirtualGrid'
+import { useCallsEdits } from './hooks/useCallsEdits'
 import { useGroupedRows } from './hooks/useGroupedRows'
 import { useHcpData } from './hooks/useHcpData'
 import './App.css'
 
 function App() {
   const { rows, loadTimeMs } = useHcpData()
+  const {
+    workingRows,
+    getCellState,
+    beginEdit,
+    setDraft,
+    cancelEdit,
+    commitEdit,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    lastRejection,
+    dismissRejection,
+  } = useCallsEdits(rows)
+
   const {
     flatRows,
     matchedCount,
@@ -22,7 +38,7 @@ function App() {
     toggleGroup,
     expandAll,
     collapseAll,
-  } = useGroupedRows(rows)
+  } = useGroupedRows(workingRows)
 
   const [metrics, setMetrics] = useState<GridMetrics>({
     rowsInDom: 0,
@@ -33,6 +49,34 @@ function App() {
   const handleMetricsChange = useCallback((next: GridMetrics) => {
     setMetrics(next)
   }, [])
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey
+      if (!mod) return
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT')
+      ) {
+        return
+      }
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault()
+        undo()
+      } else if (e.key === 'z' && e.shiftKey) {
+        e.preventDefault()
+        redo()
+      } else if (e.key === 'y') {
+        e.preventDefault()
+        redo()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [undo, redo])
 
   return (
     <div
@@ -62,6 +106,21 @@ function App() {
       </header>
 
       <main className="app__main">
+        {lastRejection ? (
+          <div className="app__banner" role="alert">
+            <span>
+              Edit rejected (row {lastRejection.rowIndex}): {lastRejection.message}
+            </span>
+            <button
+              type="button"
+              className="app__banner-dismiss"
+              onClick={dismissRejection}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
         <GridToolbar
           search={search}
           onSearchChange={setSearch}
@@ -72,12 +131,21 @@ function App() {
           totalCount={rows.length}
           onExpandAll={expandAll}
           onCollapseAll={collapseAll}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undo}
+          onRedo={redo}
         />
         <VirtualGrid
           flatRows={flatRows}
           sort={sort}
           onCycleSort={cycleSort}
           onToggleGroup={toggleGroup}
+          getCellState={getCellState}
+          onBeginEdit={beginEdit}
+          onDraftChange={setDraft}
+          onCommitEdit={commitEdit}
+          onCancelEdit={cancelEdit}
           onMetricsChange={handleMetricsChange}
         />
       </main>

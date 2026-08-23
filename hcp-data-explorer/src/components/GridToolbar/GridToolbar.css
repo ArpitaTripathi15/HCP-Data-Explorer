@@ -72,7 +72,12 @@
   cursor: pointer;
 }
 
-.grid-toolbar__btn:hover {
+.grid-toolbar__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.grid-toolbar__btn:hover:not(:disabled) {
   border-color: var(--color-primary);
 }
 

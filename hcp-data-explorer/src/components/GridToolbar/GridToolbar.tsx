@@ -10,6 +10,10 @@ interface GridToolbarProps {
   totalCount: number
   onExpandAll: () => void
   onCollapseAll: () => void
+  canUndo: boolean
+  canRedo: boolean
+  onUndo: () => void
+  onRedo: () => void
 }
 
 export function GridToolbar({
@@ -22,6 +26,10 @@ export function GridToolbar({
   totalCount,
   onExpandAll,
   onCollapseAll,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: GridToolbarProps) {
   return (
     <div className="grid-toolbar">
@@ -62,6 +70,24 @@ export function GridToolbar({
       </p>
 
       <div className="grid-toolbar__actions">
+        <button
+          type="button"
+          className="grid-toolbar__btn"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo last Calls edit (⌘Z)"
+        >
+          Undo
+        </button>
+        <button
+          type="button"
+          className="grid-toolbar__btn"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title="Redo Calls edit (⇧⌘Z)"
+        >
+          Redo
+        </button>
         <button type="button" className="grid-toolbar__btn" onClick={onExpandAll}>
           Expand all
         </button>
