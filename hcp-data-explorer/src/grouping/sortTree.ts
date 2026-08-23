@@ -93,20 +93,31 @@ function compareLeafValues(a: HcpRecord, b: HcpRecord, column: SortColumn): numb
       return a.id.localeCompare(b.id)
     case 'name':
       return a.name.localeCompare(b.name)
-    case 'specialty':
-      return (a.specialty as string).localeCompare(b.specialty as string)
+    case 'specialty': {
+      // Both null already handled as equal by nullsLast; guard for safety.
+      if (a.specialty === null || b.specialty === null) return 0
+      return a.specialty.localeCompare(b.specialty)
+    }
     case 'region':
       return a.region.localeCompare(b.region)
     case 'territory':
       return a.territory.localeCompare(b.territory)
-    case 'calls':
-      return parseCallsValue(a.calls) - parseCallsValue(b.calls)
+    case 'calls': {
+      const aN = parseCallsValue(a.calls)
+      const bN = parseCallsValue(b.calls)
+      if (!Number.isFinite(aN) || !Number.isFinite(bN)) return 0
+      return aN - bN
+    }
     case 'trx':
       return a.trx - b.trx
     case 'nrx':
       return a.nrx - b.nrx
-    case 'cpi':
-      return (computeCpi(a.calls, a.trx) as number) - (computeCpi(b.calls, b.trx) as number)
+    case 'cpi': {
+      const aC = computeCpi(a.calls, a.trx)
+      const bC = computeCpi(b.calls, b.trx)
+      if (aC === null || bC === null) return 0
+      return aC - bC
+    }
     default:
       return 0
   }
