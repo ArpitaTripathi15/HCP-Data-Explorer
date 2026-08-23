@@ -128,6 +128,29 @@
   font-style: italic;
 }
 
+.virtual-grid__header-cell--select,
+.virtual-grid__cell--select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.virtual-grid__check {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.virtual-grid__row--selected {
+  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-background));
+}
+
+.virtual-grid__row--selected:hover {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-background));
+}
+
 .virtual-grid__row--group {
   background: var(--color-surface);
   font-weight: 600;

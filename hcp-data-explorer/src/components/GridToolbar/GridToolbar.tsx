@@ -8,6 +8,10 @@ interface GridToolbarProps {
   onRegionFilterChange: (region: string | null) => void
   matchedCount: number
   totalCount: number
+  selectedCount: number
+  bulkBusy: boolean
+  onBulkTenPercent: () => void
+  onClearSelection: () => void
   onExpandAll: () => void
   onCollapseAll: () => void
   canUndo: boolean
@@ -24,6 +28,10 @@ export function GridToolbar({
   onRegionFilterChange,
   matchedCount,
   totalCount,
+  selectedCount,
+  bulkBusy,
+  onBulkTenPercent,
+  onClearSelection,
   onExpandAll,
   onCollapseAll,
   canUndo,
@@ -67,9 +75,32 @@ export function GridToolbar({
       <p className="grid-toolbar__count" aria-live="polite">
         Showing <strong>{matchedCount.toLocaleString()}</strong> of{' '}
         {totalCount.toLocaleString()}
+        {selectedCount > 0 ? (
+          <>
+            {' '}
+            · <strong>{selectedCount.toLocaleString()}</strong> selected
+          </>
+        ) : null}
       </p>
 
       <div className="grid-toolbar__actions">
+        <button
+          type="button"
+          className="grid-toolbar__btn grid-toolbar__btn--primary"
+          onClick={onBulkTenPercent}
+          disabled={selectedCount === 0 || bulkBusy}
+          title="Increase Calls by 10% for selection"
+        >
+          {bulkBusy ? 'Applying…' : '+10% calls'}
+        </button>
+        <button
+          type="button"
+          className="grid-toolbar__btn"
+          onClick={onClearSelection}
+          disabled={selectedCount === 0 || bulkBusy}
+        >
+          Clear selection
+        </button>
         <button
           type="button"
           className="grid-toolbar__btn"

@@ -12,17 +12,28 @@ function App() {
   const { rows, loadTimeMs } = useHcpData()
   const {
     workingRows,
+    selected,
+    selectedCount,
+    toggleRowSelected,
+    toggleTerritorySelected,
+    clearSelection,
+    isTerritorySelected,
+    isTerritoryIndeterminate,
     getCellState,
     beginEdit,
     setDraft,
     cancelEdit,
     commitEdit,
+    applyBulkTenPercent,
+    bulkBusy,
     undo,
     redo,
     canUndo,
     canRedo,
     lastRejection,
     dismissRejection,
+    lastBulkResult,
+    dismissBulkResult,
   } = useCallsEdits(rows)
 
   const {
@@ -106,7 +117,53 @@ function App() {
       </header>
 
       <main className="app__main">
-        {lastRejection ? (
+        {lastBulkResult ? (
+          <div
+            className={`app__banner${
+              lastBulkResult.rejected.length > 0 ? '' : ' app__banner--ok'
+            }`}
+            role="status"
+          >
+            <span>
+              Bulk +10% calls: <strong>{lastBulkResult.applied}</strong> applied
+              {lastBulkResult.rejected.length > 0 ? (
+                <>
+                  , <strong>{lastBulkResult.rejected.length}</strong> rejected
+                  {lastBulkResult.rejected.length <= 5 ? (
+                    <>
+                      {' '}
+                      (
+                      {lastBulkResult.rejected
+                        .map((r) => `row ${r.rowIndex}: ${r.message}`)
+                        .join('; ')}
+                      )
+                    </>
+                  ) : (
+                    <>
+                      {' '}
+                      (e.g.{' '}
+                      {lastBulkResult.rejected
+                        .slice(0, 3)
+                        .map((r) => `row ${r.rowIndex}: ${r.message}`)
+                        .join('; ')}
+                      ; …)
+                    </>
+                  )}
+                </>
+              ) : null}
+              . Successful rows form one undo step.
+            </span>
+            <button
+              type="button"
+              className="app__banner-dismiss"
+              onClick={dismissBulkResult}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
+        {lastRejection && !lastBulkResult ? (
           <div className="app__banner" role="alert">
             <span>
               Edit rejected (row {lastRejection.rowIndex}): {lastRejection.message}
@@ -129,6 +186,12 @@ function App() {
           onRegionFilterChange={setRegionFilter}
           matchedCount={matchedCount}
           totalCount={rows.length}
+          selectedCount={selectedCount}
+          bulkBusy={bulkBusy}
+          onBulkTenPercent={() => {
+            void applyBulkTenPercent()
+          }}
+          onClearSelection={clearSelection}
           onExpandAll={expandAll}
           onCollapseAll={collapseAll}
           canUndo={canUndo}
@@ -141,6 +204,11 @@ function App() {
           sort={sort}
           onCycleSort={cycleSort}
           onToggleGroup={toggleGroup}
+          selected={selected}
+          onToggleRowSelected={toggleRowSelected}
+          onToggleTerritorySelected={toggleTerritorySelected}
+          isTerritorySelected={isTerritorySelected}
+          isTerritoryIndeterminate={isTerritoryIndeterminate}
           getCellState={getCellState}
           onBeginEdit={beginEdit}
           onDraftChange={setDraft}

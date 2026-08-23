@@ -11,13 +11,21 @@ export interface CallsCellState {
   error?: string
 }
 
-/** Single-cell edit command for undo/redo (not a data snapshot). */
-export interface CallsEditCommand {
+/** One row change inside a command. */
+export interface CallsChange {
   rowIndex: number
-  /** Previous committed Calls (original union type preserved when no prior edit). */
   before: number | string
-  /** Accepted numeric Calls after validation. */
   after: number
+}
+
+/** Command history entries — single cell or bulk (exactly one undo step). */
+export type EditCommand =
+  | ({ kind: 'single' } & CallsChange)
+  | { kind: 'bulk'; changes: CallsChange[] }
+
+export interface BulkEditResult {
+  applied: number
+  rejected: Array<{ rowIndex: number; message: string }>
 }
 
 export type CommittedCallsMap = ReadonlyMap<number, number>
@@ -46,4 +54,11 @@ export function getDisplayCalls(
     return cell.draftValue
   }
   return getCommittedCalls(rowIndex, original, committed)
+}
+
+/** +10% Calls, rounded to nearest integer. */
+export function bumpCallsTenPercent(calls: number | string): number | null {
+  const n = typeof calls === 'number' ? calls : Number(calls)
+  if (!Number.isFinite(n)) return null
+  return Math.round(n * 1.1)
 }

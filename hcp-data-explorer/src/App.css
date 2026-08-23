@@ -56,6 +56,11 @@
   font-size: 13px;
 }
 
+.app__banner--ok {
+  background: color-mix(in srgb, #1e7a46 12%, var(--color-surface));
+  border-color: color-mix(in srgb, #1e7a46 35%, var(--color-border));
+}
+
 .app__banner-dismiss {
   flex-shrink: 0;
   padding: 4px 10px;

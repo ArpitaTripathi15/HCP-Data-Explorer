@@ -3,45 +3,69 @@ import type { HcpRecord } from '../provided/data-generator'
 import { validateCalls } from '../provided/mock-validator'
 import { parseCallsValue } from '../utils/calls'
 import {
+  bumpCallsTenPercent,
   getCommittedCalls,
+  type BulkEditResult,
   type CallsCellState,
-  type CallsEditCommand,
+  type CallsChange,
   type CommittedCallsMap,
+  type EditCommand,
 } from '../editing/types'
 
 export interface UseCallsEditsResult {
-  /** Rows with committed Calls overrides applied (pending excluded). */
   workingRows: HcpRecord[]
   committed: CommittedCallsMap
+  selected: ReadonlySet<number>
+  selectedCount: number
+  toggleRowSelected: (rowIndex: number) => void
+  toggleTerritorySelected: (rowIndices: readonly number[]) => void
+  clearSelection: () => void
+  isTerritorySelected: (rowIndices: readonly number[]) => boolean
+  isTerritoryIndeterminate: (rowIndices: readonly number[]) => boolean
   getCellState: (rowIndex: number) => CallsCellState | undefined
   beginEdit: (rowIndex: number) => boolean
   setDraft: (rowIndex: number, raw: string) => void
   cancelEdit: (rowIndex: number) => void
-  /** Commit draft; optional `value` takes precedence over stored draft. */
   commitEdit: (rowIndex: number, value?: number) => Promise<void>
+  applyBulkTenPercent: () => Promise<BulkEditResult | null>
+  bulkBusy: boolean
   undo: () => void
   redo: () => void
   canUndo: boolean
   canRedo: boolean
   lastRejection: { rowIndex: number; message: string } | null
   dismissRejection: () => void
+  lastBulkResult: BulkEditResult | null
+  dismissBulkResult: () => void
+}
+
+function commandTouchesPending(
+  cmd: EditCommand,
+  cells: Map<number, CallsCellState>,
+): boolean {
+  if (cmd.kind === 'single') {
+    return cells.get(cmd.rowIndex)?.status === 'pending'
+  }
+  return cmd.changes.some((c) => cells.get(c.rowIndex)?.status === 'pending')
 }
 
 /**
- * FR-4: async-validated Calls edits + command-history undo/redo.
- * Pending cells are locked. Undo/redo apply locally without re-validation.
+ * FR-4/FR-5: async Calls edits, selection, bulk +10%, command undo/redo.
+ * Pending excluded from aggregates via workingRows. Bulk success = one undo step.
  */
 export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
   const [committed, setCommitted] = useState<Map<number, number>>(() => new Map())
   const [cells, setCells] = useState<Map<number, CallsCellState>>(() => new Map())
-  const [undoStack, setUndoStack] = useState<CallsEditCommand[]>([])
-  const [redoStack, setRedoStack] = useState<CallsEditCommand[]>([])
+  const [selected, setSelected] = useState<Set<number>>(() => new Set())
+  const [undoStack, setUndoStack] = useState<EditCommand[]>([])
+  const [redoStack, setRedoStack] = useState<EditCommand[]>([])
+  const [bulkBusy, setBulkBusy] = useState(false)
   const [lastRejection, setLastRejection] = useState<{
     rowIndex: number
     message: string
   } | null>(null)
+  const [lastBulkResult, setLastBulkResult] = useState<BulkEditResult | null>(null)
 
-  /** Only mutated inside event handlers / async callbacks — never during render. */
   const requestTokenRef = useRef<Map<number, number>>(new Map())
 
   const workingRows = useMemo(() => {
@@ -55,6 +79,47 @@ export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
   const getCellState = useCallback(
     (rowIndex: number) => cells.get(rowIndex),
     [cells],
+  )
+
+  const toggleRowSelected = useCallback((rowIndex: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(rowIndex)) next.delete(rowIndex)
+      else next.add(rowIndex)
+      return next
+    })
+  }, [])
+
+  const toggleTerritorySelected = useCallback((rowIndices: readonly number[]) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      const allOn = rowIndices.length > 0 && rowIndices.every((i) => next.has(i))
+      if (allOn) {
+        for (const i of rowIndices) next.delete(i)
+      } else {
+        for (const i of rowIndices) next.add(i)
+      }
+      return next
+    })
+  }, [])
+
+  const clearSelection = useCallback(() => {
+    setSelected(new Set())
+  }, [])
+
+  const isTerritorySelected = useCallback(
+    (rowIndices: readonly number[]) =>
+      rowIndices.length > 0 && rowIndices.every((i) => selected.has(i)),
+    [selected],
+  )
+
+  const isTerritoryIndeterminate = useCallback(
+    (rowIndices: readonly number[]) => {
+      if (rowIndices.length === 0) return false
+      const n = rowIndices.filter((i) => selected.has(i)).length
+      return n > 0 && n < rowIndices.length
+    },
+    [selected],
   )
 
   const beginEdit = useCallback(
@@ -121,7 +186,6 @@ export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
       }
 
       const before = getCommittedCalls(rowIndex, baseRows[rowIndex], committed)
-
       const beforeNum =
         typeof before === 'number' ? before : parseCallsValue(before)
       if (Number.isFinite(beforeNum) && beforeNum === newValue) {
@@ -156,7 +220,10 @@ export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
           next.delete(rowIndex)
           return next
         })
-        setUndoStack((prev) => [...prev, { rowIndex, before, after: newValue }])
+        setUndoStack((prev) => [
+          ...prev,
+          { kind: 'single', rowIndex, before, after: newValue },
+        ])
         setRedoStack([])
       } catch (err) {
         if (requestTokenRef.current.get(rowIndex) !== token) return
@@ -207,12 +274,111 @@ export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
     [baseRows],
   )
 
+  const applyBulkTenPercent = useCallback(async (): Promise<BulkEditResult | null> => {
+    if (selected.size === 0 || bulkBusy) return null
+
+    const targets: CallsChange[] = []
+
+    for (const rowIndex of selected) {
+      if (cells.get(rowIndex)?.status === 'pending') continue
+      const before = getCommittedCalls(rowIndex, baseRows[rowIndex], committed)
+      const after = bumpCallsTenPercent(before)
+      if (after === null) continue
+      const beforeNum =
+        typeof before === 'number' ? before : parseCallsValue(before)
+      if (Number.isFinite(beforeNum) && beforeNum === after) continue
+      targets.push({ rowIndex, before, after })
+    }
+
+    if (targets.length === 0) {
+      const empty = { applied: 0, rejected: [] as BulkEditResult['rejected'] }
+      setLastBulkResult(empty)
+      return empty
+    }
+
+    setBulkBusy(true)
+
+    const tokens = new Map<number, number>()
+    for (const t of targets) {
+      const token = (requestTokenRef.current.get(t.rowIndex) ?? 0) + 1
+      requestTokenRef.current.set(t.rowIndex, token)
+      tokens.set(t.rowIndex, token)
+    }
+
+    setCells((prev) => {
+      const next = new Map(prev)
+      for (const t of targets) {
+        next.set(t.rowIndex, { status: 'pending', draftValue: t.after })
+      }
+      return next
+    })
+
+    const settled = await Promise.all(
+      targets.map(async (t) => {
+        try {
+          await validateCalls(t.after)
+          return { ok: true as const, ...t }
+        } catch (err) {
+          const message = typeof err === 'string' ? err : 'Validation failed'
+          return { ok: false as const, ...t, message }
+        }
+      }),
+    )
+
+    const appliedFinal: CallsChange[] = []
+    const rejectedFinal: BulkEditResult['rejected'] = []
+    for (const r of settled) {
+      const token = tokens.get(r.rowIndex)
+      if (token !== undefined && requestTokenRef.current.get(r.rowIndex) !== token) {
+        continue
+      }
+      if (r.ok) {
+        appliedFinal.push({ rowIndex: r.rowIndex, before: r.before, after: r.after })
+      } else {
+        rejectedFinal.push({ rowIndex: r.rowIndex, message: r.message })
+      }
+    }
+
+    if (appliedFinal.length > 0) {
+      setCommitted((prev) => {
+        const next = new Map(prev)
+        for (const c of appliedFinal) next.set(c.rowIndex, c.after)
+        return next
+      })
+      setUndoStack((prev) => [...prev, { kind: 'bulk', changes: appliedFinal }])
+      setRedoStack([])
+    }
+
+    setCells((prev) => {
+      const next = new Map(prev)
+      for (const c of appliedFinal) next.delete(c.rowIndex)
+      for (const r of rejectedFinal) {
+        next.set(r.rowIndex, { status: 'rejected', error: r.message })
+      }
+      return next
+    })
+
+    const result: BulkEditResult = {
+      applied: appliedFinal.length,
+      rejected: rejectedFinal,
+    }
+    setLastBulkResult(result)
+    setBulkBusy(false)
+    return result
+  }, [selected, bulkBusy, cells, baseRows, committed])
+
   const undo = useCallback(() => {
     if (undoStack.length === 0) return
     const cmd = undoStack[undoStack.length - 1]
-    if (cells.get(cmd.rowIndex)?.status === 'pending') return
+    if (commandTouchesPending(cmd, cells)) return
 
-    applyCommittedValue(cmd.rowIndex, cmd.before)
+    if (cmd.kind === 'single') {
+      applyCommittedValue(cmd.rowIndex, cmd.before)
+    } else {
+      for (const c of cmd.changes) {
+        applyCommittedValue(c.rowIndex, c.before)
+      }
+    }
     setUndoStack(undoStack.slice(0, -1))
     setRedoStack((r) => [...r, cmd])
   }, [undoStack, cells, applyCommittedValue])
@@ -220,9 +386,15 @@ export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
   const redo = useCallback(() => {
     if (redoStack.length === 0) return
     const cmd = redoStack[redoStack.length - 1]
-    if (cells.get(cmd.rowIndex)?.status === 'pending') return
+    if (commandTouchesPending(cmd, cells)) return
 
-    applyCommittedValue(cmd.rowIndex, cmd.after)
+    if (cmd.kind === 'single') {
+      applyCommittedValue(cmd.rowIndex, cmd.after)
+    } else {
+      for (const c of cmd.changes) {
+        applyCommittedValue(c.rowIndex, c.after)
+      }
+    }
     setRedoStack(redoStack.slice(0, -1))
     setUndoStack((u) => [...u, cmd])
   }, [redoStack, cells, applyCommittedValue])
@@ -242,19 +414,45 @@ export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
     })
   }, [])
 
+  const dismissBulkResult = useCallback(() => {
+    setLastBulkResult(null)
+    setCells((prev) => {
+      let changed = false
+      const next = new Map(prev)
+      for (const [idx, cell] of next) {
+        if (cell.status === 'rejected') {
+          next.delete(idx)
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [])
+
   return {
     workingRows,
     committed,
+    selected,
+    selectedCount: selected.size,
+    toggleRowSelected,
+    toggleTerritorySelected,
+    clearSelection,
+    isTerritorySelected,
+    isTerritoryIndeterminate,
     getCellState,
     beginEdit,
     setDraft,
     cancelEdit,
     commitEdit,
+    applyBulkTenPercent,
+    bulkBusy,
     undo,
     redo,
     canUndo: undoStack.length > 0,
     canRedo: redoStack.length > 0,
     lastRejection,
     dismissRejection,
+    lastBulkResult,
+    dismissBulkResult,
   }
 }

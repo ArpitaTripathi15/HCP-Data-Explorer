@@ -49,6 +49,8 @@ export type FlatRow =
       territory: string
       aggregates: AggregateStats
       expanded: boolean
+      /** Leaf indices in this territory (for per-territory selection). */
+      rowIndices: number[]
     }
   | {
       kind: 'hcp'

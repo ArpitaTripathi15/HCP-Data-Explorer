@@ -1,5 +1,7 @@
 export const ROW_HEIGHT = 40
 
+export const SELECT_COL_WIDTH = '44px'
+
 export const GRID_COLUMNS = [
   { key: 'id', label: 'HCP ID', width: '120px', align: 'left' as const },
   { key: 'name', label: 'Name', width: '160px', align: 'left' as const },
@@ -14,4 +16,6 @@ export const GRID_COLUMNS = [
 
 export type GridColumnKey = (typeof GRID_COLUMNS)[number]['key']
 
-export const GRID_TEMPLATE = GRID_COLUMNS.map((c) => c.width).join(' ')
+export const GRID_TEMPLATE = [SELECT_COL_WIDTH, ...GRID_COLUMNS.map((c) => c.width)].join(
+  ' ',
+)

@@ -33,6 +33,7 @@ export function flattenVisibleRows(
         territory: territory.territory,
         aggregates: territory.aggregates,
         expanded: territoryExpanded,
+        rowIndices: territory.rowIndices,
       })
 
       if (!territoryExpanded) continue

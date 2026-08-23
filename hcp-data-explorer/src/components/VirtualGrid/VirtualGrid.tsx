@@ -24,6 +24,11 @@ interface VirtualGridProps {
   sort: SortState | null
   onCycleSort: (column: SortColumn) => void
   onToggleGroup: (key: GroupKey) => void
+  selected: ReadonlySet<number>
+  onToggleRowSelected: (rowIndex: number) => void
+  onToggleTerritorySelected: (rowIndices: readonly number[]) => void
+  isTerritorySelected: (rowIndices: readonly number[]) => boolean
+  isTerritoryIndeterminate: (rowIndices: readonly number[]) => boolean
   getCellState: (rowIndex: number) => CallsCellState | undefined
   onBeginEdit: (rowIndex: number) => boolean
   onDraftChange: (rowIndex: number, raw: string) => void
@@ -50,6 +55,11 @@ export function VirtualGrid({
   sort,
   onCycleSort,
   onToggleGroup,
+  selected,
+  onToggleRowSelected,
+  onToggleTerritorySelected,
+  isTerritorySelected,
+  isTerritoryIndeterminate,
   getCellState,
   onBeginEdit,
   onDraftChange,
@@ -108,6 +118,7 @@ export function VirtualGrid({
   return (
     <div className="virtual-grid">
       <div className="virtual-grid__header" style={{ gridTemplateColumns: GRID_TEMPLATE }}>
+        <div className="virtual-grid__header-cell virtual-grid__header-cell--select" aria-hidden="true" />
         {GRID_COLUMNS.map((col) => {
           const active = sort?.column === col.key
           return (
@@ -135,7 +146,7 @@ export function VirtualGrid({
         onScroll={handleScroll}
         role="treegrid"
         aria-rowcount={flatRows.length}
-        aria-colcount={GRID_COLUMNS.length}
+        aria-colcount={GRID_COLUMNS.length + 1}
       >
         <div
           className="virtual-grid__scroll-area"
@@ -163,10 +174,27 @@ export function VirtualGrid({
                   aria-level={level}
                   aria-rowindex={virtualRow.index + 2}
                 >
+                  <div className="virtual-grid__cell virtual-grid__cell--select" role="gridcell">
+                    {item.kind === 'territory' ? (
+                      <input
+                        type="checkbox"
+                        className="virtual-grid__check"
+                        checked={isTerritorySelected(item.rowIndices)}
+                        ref={(el) => {
+                          if (el) {
+                            el.indeterminate = isTerritoryIndeterminate(item.rowIndices)
+                          }
+                        }}
+                        onChange={() => onToggleTerritorySelected(item.rowIndices)}
+                        aria-label={`Select territory ${item.territory}`}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    ) : null}
+                  </div>
                   <button
                     type="button"
                     className="virtual-grid__group-btn"
-                    style={{ gridColumn: '1 / 6' }}
+                    style={{ gridColumn: '2 / 7' }}
                     onClick={() => onToggleGroup(item.key)}
                     aria-label={`${item.expanded ? 'Collapse' : 'Expand'} ${label}`}
                   >
@@ -207,16 +235,29 @@ export function VirtualGrid({
             const { row, rowIndex } = item
             const cpi = computeCpi(row.calls, row.trx)
             const cellState = getCellState(rowIndex)
+            const isSelected = selected.has(rowIndex)
 
             return (
               <div
                 key={rowIndex}
-                className="virtual-grid__row virtual-grid__row--hcp"
+                className={`virtual-grid__row virtual-grid__row--hcp${
+                  isSelected ? ' virtual-grid__row--selected' : ''
+                }`}
                 style={style}
                 role="row"
                 aria-level={3}
                 aria-rowindex={virtualRow.index + 2}
+                aria-selected={isSelected}
               >
+                <div className="virtual-grid__cell virtual-grid__cell--select" role="gridcell">
+                  <input
+                    type="checkbox"
+                    className="virtual-grid__check"
+                    checked={isSelected}
+                    onChange={() => onToggleRowSelected(rowIndex)}
+                    aria-label={`Select ${row.id}`}
+                  />
+                </div>
                 <div className="virtual-grid__cell" role="gridcell">
                   {row.id}
                 </div>
