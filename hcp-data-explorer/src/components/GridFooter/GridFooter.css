@@ -1,0 +1,20 @@
+.grid-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.grid-footer__stat strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.grid-footer__divider {
+  opacity: 0.4;
+}
