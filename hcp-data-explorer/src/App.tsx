@@ -2,11 +2,13 @@ import { useCallback, useState } from 'react'
 import { DEFAULT_THEME } from './provided/theme-config'
 import { GridFooter } from './components/GridFooter/GridFooter'
 import { VirtualGrid, type GridMetrics } from './components/VirtualGrid/VirtualGrid'
+import { useGroupedRows } from './hooks/useGroupedRows'
 import { useHcpData } from './hooks/useHcpData'
 import './App.css'
 
 function App() {
   const { rows, loadTimeMs } = useHcpData()
+  const { flatRows, toggleGroup, expandAll, collapseAll } = useGroupedRows(rows)
   const [metrics, setMetrics] = useState<GridMetrics>({
     rowsInDom: 0,
     lastOperationMs: loadTimeMs,
@@ -33,14 +35,31 @@ function App() {
       }}
     >
       <header className="app__header">
-        <h1 className="app__title">{DEFAULT_THEME.appName}</h1>
-        <p className="app__subtitle">
-          {rows.length.toLocaleString()} healthcare provider records
-        </p>
+        <div className="app__header-top">
+          <div>
+            <h1 className="app__title">{DEFAULT_THEME.appName}</h1>
+            <p className="app__subtitle">
+              {rows.length.toLocaleString()} healthcare provider records · grouped by
+              Region → Territory
+            </p>
+          </div>
+          <div className="app__toolbar">
+            <button type="button" className="app__toolbar-btn" onClick={expandAll}>
+              Expand all
+            </button>
+            <button type="button" className="app__toolbar-btn" onClick={collapseAll}>
+              Collapse all
+            </button>
+          </div>
+        </div>
       </header>
 
       <main className="app__main">
-        <VirtualGrid rows={rows} onMetricsChange={handleMetricsChange} />
+        <VirtualGrid
+          flatRows={flatRows}
+          onToggleGroup={toggleGroup}
+          onMetricsChange={handleMetricsChange}
+        />
       </main>
 
       <GridFooter

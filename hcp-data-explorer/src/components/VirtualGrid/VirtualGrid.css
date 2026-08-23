@@ -82,3 +82,85 @@
   color: var(--color-text-muted);
   font-style: italic;
 }
+
+.virtual-grid__row--group {
+  background: var(--color-surface);
+  font-weight: 600;
+}
+
+.virtual-grid__row--group:hover {
+  background: var(--color-surface);
+  filter: brightness(0.98);
+}
+
+.virtual-grid__row--territory {
+  background: color-mix(in srgb, var(--color-surface) 70%, var(--color-background));
+}
+
+.virtual-grid__row--territory:hover {
+  background: color-mix(in srgb, var(--color-surface) 70%, var(--color-background));
+  filter: brightness(0.98);
+}
+
+.virtual-grid__group-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 12px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.virtual-grid__group-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.virtual-grid__toggle {
+  flex-shrink: 0;
+  width: 1em;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+.virtual-grid__row--territory .virtual-grid__group-btn {
+  padding-left: 28px;
+}
+
+.virtual-grid__group-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.virtual-grid__group-kind {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.virtual-grid__group-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.virtual-grid__cell--agg {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 12px;
+}
