@@ -47,7 +47,6 @@ export function useGroupedRows(rows: HcpRecord[]): UseGroupedRowsResult {
   const [sort, setSort] = useState<SortState | null>(null);
   const [collapsed, setCollapsed] = useState<Set<GroupKey>>(() => new Set());
 
-  /** Auto-expand matching groups when search is applied (event handler, not effect). */
   const setSearch = useCallback((value: string) => {
     setSearchState(value);
     if (value.trim()) {

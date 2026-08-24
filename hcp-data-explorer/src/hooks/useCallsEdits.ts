@@ -53,10 +53,6 @@ function commandTouchesPending(
   return cmd.changes.some((c) => cells.get(c.rowIndex)?.status === "pending");
 }
 
-/**
- * FR-4/FR-5: async Calls edits, selection, bulk +10%, command undo/redo.
- * Pending excluded from aggregates via workingRows. Bulk success = one undo step.
- */
 export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
   const [committed, setCommitted] = useState<Map<number, number>>(
     () => new Map(),

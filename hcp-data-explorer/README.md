@@ -1,68 +1,76 @@
 # HCP Data Explorer
 
-A React + TypeScript web app for exploring 50,000 healthcare-provider (HCP) records with virtualization, grouping, sorting, filtering, async-validated editing, and runtime theming.
+A React + TypeScript app for exploring a large healthcare-provider (HCP) roster. The grid loads 50,000 records, groups them by region and territory, and lets field teams search, sort, edit Calls, and switch tenant branding without a rebuild.
 
-## Getting Started
+## Run the app
+
+Node 20+ is required.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open the URL shown in the terminal (typically `http://localhost:5173`).
+Open the localhost.
 
-## Architecture Overview
+Optional query param: `?tenant=aurelia` or `?tenant=meridian`.
+
+## What you can do
+
+**Browse.** Records sit in a two-level tree: Region → Territory → HCP. Group rows show Σ Calls, Σ TRx, Σ NRx, HCP count, and CPI (`Calls ÷ TRx × 100`, or `—` when TRx is zero). Click a group to expand or collapse it; the toolbar has Expand all / Collapse all.
+
+**Find rows.** Search matches name or HCP ID (case-insensitive). The region dropdown narrows the same view. Counts and aggregates always reflect the current subset.
+
+**Sort.** Click a column header to cycle ascending → descending → unsorted. Numeric columns also reorder regions and territories by that column’s aggregate.
+
+**Edit Calls.** Click a Calls cell, type a value, press Enter (or blur). The value is validated asynchronously. While pending, the cell is locked and group totals still use the last accepted number. A rejection banner shows why the change was refused.
+
+**Bulk update.** Check individual rows or a whole territory, then **+10% calls**. Each selected row is validated independently. The banner reports how many applied vs rejected; one Undo reverses the applied subset.
+
+**Undo / redo.** Toolbar buttons or ⌘Z / ⇧⌘Z. Undo expands a collapsed group and scrolls the row into view. If the row is hidden by search or filter, a banner says so — the committed value still updates.
+
+**Tenant theme.** The header dropdown switches Default, Aurelia, and Meridian. Invalid or missing theme fields fall back per field so a bad customer config cannot crash the UI.
+
+## Architecture
+
+The UI is a thin shell. Domain work lives in hooks and pure functions so the virtualized list only renders what is already decided.
+
+```
+generateRows()
+      │
+      ▼
+useHcpData          source roster (stable array)
+      │
+      ▼
+useCallsEdits       committed Calls overlay, selection, undo
+      │
+      ▼
+useGroupedRows      filter → group tree → sort → flatten
+      │
+      ▼
+VirtualGrid         windowed rows (TanStack Virtual)
+```
+
+**Identity.** Displayed `id` is not unique in the seed. Selection, edits, and undo always key by **array index** in that source array, so sort, filter, and grouping never orphan a change.
+
+**Edits vs display.** `workingRows` is the roster with committed Calls only. Pending drafts appear in the cell but are not rolled into group sums until validation succeeds.
+
+**Grouping.** `buildGroupedTree` builds Region → Territory → leaves from filtered indices. `flattenVisibleRows` turns that tree into the list the virtualizer scrolls. Collapsed groups are a set of keys; the rest stay expanded by default.
+
+**Theming.** `resolveTheme` sanitizes each tenant field independently, then `themeToCssVars` writes CSS variables (`--color-primary`, `--color-header`, `--radius`, …). Components never read hex values from the config object.
+
+## Source layout
 
 ```
 src/
-├── provided/          # Black-box starter files (DO NOT MODIFY)
-├── components/        # UI components (VirtualGrid, GridFooter, …)
-├── hooks/             # Data loading hooks
-├── utils/             # Pure helpers (calls parsing, CPI, …)
-└── App.tsx            # Root layout
+├── provided/          Seed data, validator, tenant configs (treat as read-only)
+├── components/        Grid, toolbar, footer, Calls cell
+├── grouping/          Tree build, flatten, filter, sort
+├── hooks/             Data, edits, grouping, tenant
+├── theme/             Resolve + CSS variables
+├── editing/           Edit command types
+├── utils/             Calls parse, CPI, aggregates
+└── App.tsx            Wires hooks to the shell
 ```
 
-### State Model (evolving)
-
-| Concern | Current approach | Planned |
-|---------|------------------|---------|
-| Row data | Generated once via `useMemo` in `useHcpData` | Central store with edit overlay |
-| Row identity | **Array index** (stable for this dataset) | Same — `id` is not unique |
-| Virtualization | `@tanstack/react-virtual` | Same |
-| Edits / undo | — | Command history (FR-4) |
-| Grouping | — | Region → Territory tree (FR-2) |
-
-### Virtualization (FR-1) — Build vs Buy
-
-**Choice:** `@tanstack/react-virtual`
-
-**Why not a full grid library (AG Grid, TanStack Table)?** Those excel at column features out of the box, but this assignment requires custom semantics for grouping aggregates, async edit lifecycle, and undo that must survive sort/filter/group changes. A headless virtualizer keeps DOM control in our hands while we layer domain logic on top.
-
-**Why not hand-rolled?** Hand-rolling scroll-position math, overscan, and resize handling is error-prone and not where the evaluation focus lies. TanStack Virtual is MIT-licensed, lightweight, and composes cleanly with our own row renderer.
-
-**FR-1 implementation:**
-- Fixed row height (40 px) with windowed rendering — only visible rows (+ 12 overscan) exist in the DOM
-- Footer reports rows-in-DOM count and last operation timing (data load / scroll frame)
-
-## Progress
-
-| Part | Requirement | Status |
-|------|-------------|--------|
-| 1 | Foundation + FR-1 Virtualized grid | ✅ Done |
-| 2 | FR-2 Two-level grouping with subtotals | Pending |
-| 3 | FR-3 Sort, search, filter | Pending |
-| 4 | FR-4 Async-validated inline editing + undo | Pending |
-| 5 | FR-5/FR-6 Bulk edit & undo-at-scale design | Pending |
-| 6 | FR-7 CPI aggregates | Partial (row-level done) |
-| 7 | FR-8 Runtime white-labelling | Pending |
-| 8 | Tests + ASSUMPTIONS.md | Partial |
-
-## Time Spent
-
-- Part 1: _TBD_
-
-## What I'd Do With More Time
-
-- Keyboard navigation across virtualized rows
-- Performance instrumentation with documented findings
-- Export pending change-set as JSON diff
+Stack: React 19, Vite, TypeScript, `@tanstack/react-virtual`.
