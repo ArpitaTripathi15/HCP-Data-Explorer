@@ -1,6 +1,5 @@
 import type { HcpRecord } from "../provided/data-generator";
 
-/** Per-cell edit lifecycle for Calls (FR-4). */
 export type CallsCellStatus = "idle" | "editing" | "pending" | "rejected";
 
 export interface CallsCellState {
