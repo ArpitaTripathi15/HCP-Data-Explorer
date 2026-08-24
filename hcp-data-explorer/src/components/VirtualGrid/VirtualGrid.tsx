@@ -143,9 +143,8 @@ export function VirtualGrid({
             <button
               key={col.key}
               type="button"
-              className={`virtual-grid__header-cell virtual-grid__header-btn${
-                col.align === 'right' ? ' virtual-grid__header-cell--right' : ''
-              }${active ? ' virtual-grid__header-btn--active' : ''}`}
+              className={`virtual-grid__header-cell virtual-grid__header-btn${col.align === 'right' ? ' virtual-grid__header-cell--right' : ''
+                }${active ? ' virtual-grid__header-btn--active' : ''}`}
               onClick={() => onCycleSort(col.key)}
               aria-label={`Sort by ${col.label}`}
             >
@@ -259,9 +258,8 @@ export function VirtualGrid({
             return (
               <div
                 key={rowIndex}
-                className={`virtual-grid__row virtual-grid__row--hcp${
-                  isSelected ? ' virtual-grid__row--selected' : ''
-                }${isRevealed ? ' virtual-grid__row--revealed' : ''}`}
+                className={`virtual-grid__row virtual-grid__row--hcp${isSelected ? ' virtual-grid__row--selected' : ''
+                  }${isRevealed ? ' virtual-grid__row--revealed' : ''}`}
                 style={style}
                 role="row"
                 aria-level={3}

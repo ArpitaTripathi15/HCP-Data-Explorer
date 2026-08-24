@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { UndoRedoOutcome } from './editing/types'
-import { DEFAULT_THEME } from './provided/theme-config'
 import { GridFooter } from './components/GridFooter/GridFooter'
 import { GridToolbar } from './components/GridToolbar/GridToolbar'
 import { VirtualGrid, type GridMetrics } from './components/VirtualGrid/VirtualGrid'
 import { useCallsEdits } from './hooks/useCallsEdits'
 import { useGroupedRows } from './hooks/useGroupedRows'
 import { useHcpData } from './hooks/useHcpData'
+import { useTenantTheme } from './hooks/useTenantTheme'
+import { themeToCssVars } from './theme/themeCssVars'
 import './App.css'
 
 function pickRevealIndex(
@@ -18,6 +19,7 @@ function pickRevealIndex(
 }
 
 function App() {
+  const { tenantId, tenantIds, theme, setTenantId } = useTenantTheme()
   const { rows, loadTimeMs } = useHcpData()
   const {
     workingRows,
@@ -157,29 +159,34 @@ function App() {
   }, [handleUndo, handleRedo])
 
   return (
-    <div
-      className="app"
-      style={{
-        ['--color-primary' as string]: DEFAULT_THEME.primary,
-        ['--color-on-primary' as string]: DEFAULT_THEME.onPrimary,
-        ['--color-background' as string]: DEFAULT_THEME.background,
-        ['--color-surface' as string]: DEFAULT_THEME.surface,
-        ['--color-text' as string]: DEFAULT_THEME.text,
-        ['--color-text-muted' as string]: '#5A6B7D',
-        ['--color-border' as string]: '#D8DEE6',
-        ['--color-row-hover' as string]: '#F7FAFC',
-        ['--radius' as string]: `${DEFAULT_THEME.radius}px`,
-      }}
-    >
+    <div className="app" style={themeToCssVars(theme)}>
       <header className="app__header">
         <div className="app__header-top">
           <div>
-            <h1 className="app__title">{DEFAULT_THEME.appName}</h1>
+            <h1 className="app__title">{theme.appName}</h1>
             <p className="app__subtitle">
               {rows.length.toLocaleString()} healthcare provider records · grouped by
               Region → Territory
             </p>
           </div>
+          <label className="app__tenant">
+            <span className="app__tenant-label">Tenant</span>
+            <select
+              className="app__tenant-select"
+              value={tenantId ?? ''}
+              onChange={(e) =>
+                setTenantId(e.target.value === '' ? null : e.target.value)
+              }
+              aria-label="Switch tenant theme"
+            >
+              <option value="">Default</option>
+              {tenantIds.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
       </header>
 
@@ -199,9 +206,8 @@ function App() {
 
         {lastBulkResult ? (
           <div
-            className={`app__banner${
-              lastBulkResult.rejected.length > 0 ? '' : ' app__banner--ok'
-            }`}
+            className={`app__banner${lastBulkResult.rejected.length > 0 ? '' : ' app__banner--ok'
+              }`}
             role="status"
           >
             <span>

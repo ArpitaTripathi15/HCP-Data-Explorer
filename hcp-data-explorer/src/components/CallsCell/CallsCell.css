@@ -58,18 +58,20 @@
 }
 
 .calls-cell--pending {
-  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+  background: color-mix(in srgb, var(--color-pending) 18%, var(--color-background));
+  box-shadow: inset 3px 0 0 var(--color-pending);
 }
 
 .calls-cell--rejected {
-  background: color-mix(in srgb, #c0392b 14%, transparent);
+  background: color-mix(in srgb, var(--color-rejected) 18%, var(--color-background));
+  box-shadow: inset 3px 0 0 var(--color-rejected);
 }
 
 .calls-cell__spinner {
   width: 10px;
   height: 10px;
-  border: 2px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
-  border-top-color: var(--color-primary);
+  border: 2px solid color-mix(in srgb, var(--color-pending) 35%, transparent);
+  border-top-color: var(--color-pending);
   border-radius: 50%;
   animation: calls-spin 0.7s linear infinite;
   flex-shrink: 0;

@@ -144,11 +144,19 @@
 }
 
 .virtual-grid__row--selected {
-  background: color-mix(in srgb, var(--color-primary) 8%, var(--color-background));
+  background: color-mix(
+    in srgb,
+    var(--color-primary) 8%,
+    var(--color-background)
+  );
 }
 
 .virtual-grid__row--selected:hover {
-  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-background));
+  background: color-mix(
+    in srgb,
+    var(--color-primary) 12%,
+    var(--color-background)
+  );
 }
 
 .virtual-grid__row--revealed {
@@ -157,7 +165,11 @@
 
 @keyframes virtual-grid-reveal {
   0% {
-    background: color-mix(in srgb, var(--color-primary) 28%, var(--color-background));
+    background: color-mix(
+      in srgb,
+      var(--color-primary) 28%,
+      var(--color-background)
+    );
   }
   100% {
     background: var(--color-background);
@@ -170,10 +182,18 @@
 
 @keyframes virtual-grid-reveal-selected {
   0% {
-    background: color-mix(in srgb, var(--color-primary) 36%, var(--color-background));
+    background: color-mix(
+      in srgb,
+      var(--color-primary) 36%,
+      var(--color-background)
+    );
   }
   100% {
-    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-background));
+    background: color-mix(
+      in srgb,
+      var(--color-primary) 8%,
+      var(--color-background)
+    );
   }
 }
 
@@ -188,11 +208,19 @@
 }
 
 .virtual-grid__row--territory {
-  background: color-mix(in srgb, var(--color-surface) 70%, var(--color-background));
+  background: color-mix(
+    in srgb,
+    var(--color-surface) 70%,
+    var(--color-background)
+  );
 }
 
 .virtual-grid__row--territory:hover {
-  background: color-mix(in srgb, var(--color-surface) 70%, var(--color-background));
+  background: color-mix(
+    in srgb,
+    var(--color-surface) 70%,
+    var(--color-background)
+  );
   filter: brightness(0.98);
 }
 
