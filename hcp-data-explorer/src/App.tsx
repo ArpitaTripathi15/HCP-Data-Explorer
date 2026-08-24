@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { UndoRedoOutcome } from './editing/types'
 import { DEFAULT_THEME } from './provided/theme-config'
 import { GridFooter } from './components/GridFooter/GridFooter'
 import { GridToolbar } from './components/GridToolbar/GridToolbar'
@@ -7,6 +8,14 @@ import { useCallsEdits } from './hooks/useCallsEdits'
 import { useGroupedRows } from './hooks/useGroupedRows'
 import { useHcpData } from './hooks/useHcpData'
 import './App.css'
+
+function pickRevealIndex(
+  indices: readonly number[],
+  isVisible: (rowIndex: number) => boolean,
+): number | null {
+  const visible = indices.find(isVisible)
+  return visible ?? indices[0] ?? null
+}
 
 function App() {
   const { rows, loadTimeMs } = useHcpData()
@@ -49,6 +58,8 @@ function App() {
     toggleGroup,
     expandAll,
     collapseAll,
+    isRowInFilteredView,
+    expandAncestorsForRows,
   } = useGroupedRows(workingRows)
 
   const [metrics, setMetrics] = useState<GridMetrics>({
@@ -56,9 +67,65 @@ function App() {
     lastOperationMs: loadTimeMs,
     operation: 'data load',
   })
+  const [revealRowIndex, setRevealRowIndex] = useState<number | null>(null)
+  const [historyNotice, setHistoryNotice] = useState<string | null>(null)
 
   const handleMetricsChange = useCallback((next: GridMetrics) => {
     setMetrics(next)
+  }, [])
+
+  const afterUndoRedo = useCallback(
+    (outcome: UndoRedoOutcome | null) => {
+      if (!outcome) return
+
+      const hidden = outcome.affectedIndices.filter((i) => !isRowInFilteredView(i))
+      const visible = outcome.affectedIndices.filter((i) => isRowInFilteredView(i))
+
+      expandAncestorsForRows(outcome.affectedIndices)
+
+      const reveal = pickRevealIndex(
+        visible.length > 0 ? visible : outcome.affectedIndices,
+        isRowInFilteredView,
+      )
+      if (reveal !== null && isRowInFilteredView(reveal)) {
+        setRevealRowIndex(reveal)
+      } else {
+        setRevealRowIndex(null)
+      }
+
+      const actionLabel = outcome.action === 'undo' ? 'Undid' : 'Redid'
+      const count = outcome.affectedIndices.length
+      if (hidden.length > 0 && visible.length === 0) {
+        setHistoryNotice(
+          `${actionLabel} ${count} row${count === 1 ? '' : 's'} (hidden by current search/filter). Clear filters to see ${rows[hidden[0]!].id}.`,
+        )
+      } else if (hidden.length > 0) {
+        setHistoryNotice(
+          `${actionLabel} ${count} row${count === 1 ? '' : 's'}. ${hidden.length} hidden by filter — scrolled to first visible match.`,
+        )
+      } else if (count > 1) {
+        setHistoryNotice(
+          `${actionLabel} bulk edit (${count} rows). Scrolled to first affected row.`,
+        )
+      } else if (reveal !== null) {
+        setHistoryNotice(
+          `${actionLabel} edit on ${rows[reveal].id}.`,
+        )
+      }
+    },
+    [expandAncestorsForRows, isRowInFilteredView, rows],
+  )
+
+  const handleUndo = useCallback(() => {
+    afterUndoRedo(undo())
+  }, [undo, afterUndoRedo])
+
+  const handleRedo = useCallback(() => {
+    afterUndoRedo(redo())
+  }, [redo, afterUndoRedo])
+
+  const handleRevealComplete = useCallback(() => {
+    window.setTimeout(() => setRevealRowIndex(null), 2000)
   }, [])
 
   useEffect(() => {
@@ -76,18 +143,18 @@ function App() {
       }
       if (e.key === 'z' && !e.shiftKey) {
         e.preventDefault()
-        undo()
+        handleUndo()
       } else if (e.key === 'z' && e.shiftKey) {
         e.preventDefault()
-        redo()
+        handleRedo()
       } else if (e.key === 'y') {
         e.preventDefault()
-        redo()
+        handleRedo()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [undo, redo])
+  }, [handleUndo, handleRedo])
 
   return (
     <div
@@ -117,6 +184,19 @@ function App() {
       </header>
 
       <main className="app__main">
+        {historyNotice ? (
+          <div className="app__banner app__banner--info" role="status">
+            <span>{historyNotice}</span>
+            <button
+              type="button"
+              className="app__banner-dismiss"
+              onClick={() => setHistoryNotice(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+        ) : null}
+
         {lastBulkResult ? (
           <div
             className={`app__banner${
@@ -196,8 +276,8 @@ function App() {
           onCollapseAll={collapseAll}
           canUndo={canUndo}
           canRedo={canRedo}
-          onUndo={undo}
-          onRedo={redo}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
         />
         <VirtualGrid
           flatRows={flatRows}
@@ -214,6 +294,8 @@ function App() {
           onDraftChange={setDraft}
           onCommitEdit={commitEdit}
           onCancelEdit={cancelEdit}
+          revealRowIndex={revealRowIndex}
+          onRevealComplete={handleRevealComplete}
           onMetricsChange={handleMetricsChange}
         />
       </main>

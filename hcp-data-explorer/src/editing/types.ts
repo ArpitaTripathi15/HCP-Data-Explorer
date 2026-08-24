@@ -62,3 +62,18 @@ export function bumpCallsTenPercent(calls: number | string): number | null {
   if (!Number.isFinite(n)) return null
   return Math.round(n * 1.1)
 }
+
+/** Row indices touched by an undo/redo command. */
+export function getCommandRowIndices(cmd: EditCommand): number[] {
+  if (cmd.kind === 'single') return [cmd.rowIndex]
+  return cmd.changes.map((c) => c.rowIndex)
+}
+
+export interface UndoRedoOutcome {
+  action: 'undo' | 'redo'
+  command: EditCommand
+  /** Indices whose committed Calls were changed. */
+  affectedIndices: number[]
+  /** Affected rows not in the current search/region filter. */
+  hiddenIndices: number[]
+}

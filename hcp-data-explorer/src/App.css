@@ -61,6 +61,11 @@
   border-color: color-mix(in srgb, #1e7a46 35%, var(--color-border));
 }
 
+.app__banner--info {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+}
+
 .app__banner-dismiss {
   flex-shrink: 0;
   padding: 4px 10px;

@@ -2,6 +2,7 @@ import { useCallback, useDeferredValue, useMemo, useState } from 'react'
 import { buildGroupedTree } from '../grouping/buildGroupedTree'
 import { filterRowIndices, listRegions } from '../grouping/filterRows'
 import { allGroupKeys, flattenVisibleRows } from '../grouping/flattenVisibleRows'
+import { ancestorKeysForRows } from '../grouping/revealRows'
 import {
   applySortToTree,
   nextSortState,
@@ -26,6 +27,10 @@ export interface UseGroupedRowsResult {
   toggleGroup: (key: GroupKey) => void
   expandAll: () => void
   collapseAll: () => void
+  /** True when row passes current search + region filter. */
+  isRowInFilteredView: (rowIndex: number) => boolean
+  /** Expand region/territory so these rows can appear in the flat list. */
+  expandAncestorsForRows: (rowIndices: readonly number[]) => void
 }
 
 /**
@@ -56,6 +61,29 @@ export function useGroupedRows(rows: HcpRecord[]): UseGroupedRowsResult {
         region: regionFilter,
       }),
     [rows, deferredSearch, regionFilter],
+  )
+
+  const filteredSet = useMemo(
+    () => new Set(filteredIndices),
+    [filteredIndices],
+  )
+
+  const isRowInFilteredView = useCallback(
+    (rowIndex: number) => filteredSet.has(rowIndex),
+    [filteredSet],
+  )
+
+  const expandAncestorsForRows = useCallback(
+    (rowIndices: readonly number[]) => {
+      if (rowIndices.length === 0) return
+      const keysToExpand = ancestorKeysForRows(rows, rowIndices)
+      setCollapsed((prev) => {
+        const next = new Set(prev)
+        for (const key of keysToExpand) next.delete(key)
+        return next
+      })
+    },
+    [rows],
   )
 
   const baseTree = useMemo(
@@ -109,5 +137,7 @@ export function useGroupedRows(rows: HcpRecord[]): UseGroupedRowsResult {
     toggleGroup,
     expandAll,
     collapseAll,
+    isRowInFilteredView,
+    expandAncestorsForRows,
   }
 }

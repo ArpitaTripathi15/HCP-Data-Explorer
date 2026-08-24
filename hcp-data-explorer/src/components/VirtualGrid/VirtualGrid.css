@@ -151,6 +151,32 @@
   background: color-mix(in srgb, var(--color-primary) 12%, var(--color-background));
 }
 
+.virtual-grid__row--revealed {
+  animation: virtual-grid-reveal 2s ease-out;
+}
+
+@keyframes virtual-grid-reveal {
+  0% {
+    background: color-mix(in srgb, var(--color-primary) 28%, var(--color-background));
+  }
+  100% {
+    background: var(--color-background);
+  }
+}
+
+.virtual-grid__row--revealed.virtual-grid__row--selected {
+  animation: virtual-grid-reveal-selected 2s ease-out;
+}
+
+@keyframes virtual-grid-reveal-selected {
+  0% {
+    background: color-mix(in srgb, var(--color-primary) 36%, var(--color-background));
+  }
+  100% {
+    background: color-mix(in srgb, var(--color-primary) 8%, var(--color-background));
+  }
+}
+
 .virtual-grid__row--group {
   background: var(--color-surface);
   font-weight: 600;

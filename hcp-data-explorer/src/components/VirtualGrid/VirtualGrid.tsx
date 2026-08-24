@@ -34,6 +34,9 @@ interface VirtualGridProps {
   onDraftChange: (rowIndex: number, raw: string) => void
   onCommitEdit: (rowIndex: number, value?: number) => void
   onCancelEdit: (rowIndex: number) => void
+  /** Scroll to and briefly highlight this HCP row (FR-6 undo reveal). */
+  revealRowIndex?: number | null
+  onRevealComplete?: () => void
   onMetricsChange?: (metrics: GridMetrics) => void
 }
 
@@ -65,6 +68,8 @@ export function VirtualGrid({
   onDraftChange,
   onCommitEdit,
   onCancelEdit,
+  revealRowIndex = null,
+  onRevealComplete,
   onMetricsChange,
 }: VirtualGridProps) {
   const parentRef = useRef<HTMLDivElement>(null)
@@ -77,6 +82,19 @@ export function VirtualGrid({
     estimateSize: () => ROW_HEIGHT,
     overscan: 12,
   })
+
+  // FR-6: after undo/redo expands groups, scroll the affected row into view.
+  useEffect(() => {
+    if (revealRowIndex === null) return
+
+    const flatIdx = flatRows.findIndex(
+      (r) => r.kind === 'hcp' && r.rowIndex === revealRowIndex,
+    )
+    if (flatIdx < 0) return
+
+    rowVirtualizer.scrollToIndex(flatIdx, { align: 'center' })
+    onRevealComplete?.()
+  }, [revealRowIndex, flatRows, rowVirtualizer, onRevealComplete])
 
   const virtualItems = rowVirtualizer.getVirtualItems()
 
@@ -236,13 +254,14 @@ export function VirtualGrid({
             const cpi = computeCpi(row.calls, row.trx)
             const cellState = getCellState(rowIndex)
             const isSelected = selected.has(rowIndex)
+            const isRevealed = revealRowIndex === rowIndex
 
             return (
               <div
                 key={rowIndex}
                 className={`virtual-grid__row virtual-grid__row--hcp${
                   isSelected ? ' virtual-grid__row--selected' : ''
-                }`}
+                }${isRevealed ? ' virtual-grid__row--revealed' : ''}`}
                 style={style}
                 role="row"
                 aria-level={3}

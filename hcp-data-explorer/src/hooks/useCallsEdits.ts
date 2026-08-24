@@ -5,11 +5,13 @@ import { parseCallsValue } from '../utils/calls'
 import {
   bumpCallsTenPercent,
   getCommittedCalls,
+  getCommandRowIndices,
   type BulkEditResult,
   type CallsCellState,
   type CallsChange,
   type CommittedCallsMap,
   type EditCommand,
+  type UndoRedoOutcome,
 } from '../editing/types'
 
 export interface UseCallsEditsResult {
@@ -29,8 +31,8 @@ export interface UseCallsEditsResult {
   commitEdit: (rowIndex: number, value?: number) => Promise<void>
   applyBulkTenPercent: () => Promise<BulkEditResult | null>
   bulkBusy: boolean
-  undo: () => void
-  redo: () => void
+  undo: () => UndoRedoOutcome | null
+  redo: () => UndoRedoOutcome | null
   canUndo: boolean
   canRedo: boolean
   lastRejection: { rowIndex: number; message: string } | null
@@ -367,10 +369,10 @@ export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
     return result
   }, [selected, bulkBusy, cells, baseRows, committed])
 
-  const undo = useCallback(() => {
-    if (undoStack.length === 0) return
+  const undo = useCallback((): UndoRedoOutcome | null => {
+    if (undoStack.length === 0) return null
     const cmd = undoStack[undoStack.length - 1]
-    if (commandTouchesPending(cmd, cells)) return
+    if (commandTouchesPending(cmd, cells)) return null
 
     if (cmd.kind === 'single') {
       applyCommittedValue(cmd.rowIndex, cmd.before)
@@ -381,12 +383,14 @@ export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
     }
     setUndoStack(undoStack.slice(0, -1))
     setRedoStack((r) => [...r, cmd])
+    const affectedIndices = getCommandRowIndices(cmd)
+    return { action: 'undo', command: cmd, affectedIndices, hiddenIndices: [] }
   }, [undoStack, cells, applyCommittedValue])
 
-  const redo = useCallback(() => {
-    if (redoStack.length === 0) return
+  const redo = useCallback((): UndoRedoOutcome | null => {
+    if (redoStack.length === 0) return null
     const cmd = redoStack[redoStack.length - 1]
-    if (commandTouchesPending(cmd, cells)) return
+    if (commandTouchesPending(cmd, cells)) return null
 
     if (cmd.kind === 'single') {
       applyCommittedValue(cmd.rowIndex, cmd.after)
@@ -397,6 +401,8 @@ export function useCallsEdits(baseRows: HcpRecord[]): UseCallsEditsResult {
     }
     setRedoStack(redoStack.slice(0, -1))
     setUndoStack((u) => [...u, cmd])
+    const affectedIndices = getCommandRowIndices(cmd)
+    return { action: 'redo', command: cmd, affectedIndices, hiddenIndices: [] }
   }, [redoStack, cells, applyCommittedValue])
 
   const dismissRejection = useCallback(() => {
