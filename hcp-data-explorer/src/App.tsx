@@ -159,7 +159,7 @@ function App() {
   }, [handleUndo, handleRedo])
 
   return (
-    <div className="app" style={themeToCssVars(theme)}>
+    <div className="app" style={themeToCssVars(theme, tenantId)}>
       <header className="app__header">
         <div className="app__header-top">
           <div>
@@ -182,7 +182,7 @@ function App() {
               <option value="">Default</option>
               {tenantIds.map((id) => (
                 <option key={id} value={id}>
-                  {id}
+                  {id.charAt(0).toUpperCase() + id.slice(1)}
                 </option>
               ))}
             </select>

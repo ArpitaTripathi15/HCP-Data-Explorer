@@ -10,8 +10,8 @@
   flex-shrink: 0;
   padding: 16px 24px;
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-primary);
-  color: var(--color-on-primary);
+  background: var(--color-header);
+  color: var(--color-on-header);
 }
 
 .app__header-top {
@@ -53,15 +53,15 @@
   height: 36px;
   min-width: 140px;
   padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--color-on-primary) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-on-header) 35%, transparent);
   border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-on-primary) 10%, transparent);
-  color: var(--color-on-primary);
+  background: color-mix(in srgb, var(--color-on-header) 10%, transparent);
+  color: var(--color-on-header);
   font-size: 13px;
 }
 
 .app__tenant-select:focus-visible {
-  outline: 2px solid var(--color-on-primary);
+  outline: 2px solid var(--color-on-header);
   outline-offset: 2px;
 }
 
