@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useState } from 'react'
 import { generateRows, type HcpRecord } from '../provided/data-generator'
 
 export interface HcpDataState {
@@ -10,10 +10,10 @@ export interface HcpDataState {
 export type RowIndex = number
 
 export function useHcpData(): HcpDataState {
-  return useMemo(() => {
+  const [state] = useState<HcpDataState>(() => {
     const start = performance.now()
     const rows = generateRows()
-    const loadTimeMs = performance.now() - start
-    return { rows, loadTimeMs }
-  }, [])
+    return { rows, loadTimeMs: performance.now() - start }
+  })
+  return state
 }
